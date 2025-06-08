@@ -10,9 +10,11 @@ from typing import List, Dict, Optional
 from datetime import datetime
 import logging
 
+from .base import NewsSource
+
 logger = logging.getLogger(__name__)
 
-class GoogleNewsScraper:
+class GoogleNewsScraper(NewsSource):
     """Scrapes top stories from Google News."""
     
     BASE_URL = "https://news.google.com/rss"
@@ -28,18 +30,47 @@ class GoogleNewsScraper:
         """
         self.max_stories = max_stories
 
+    def _parse_story_item(self, item) -> Optional[Dict[str, str]]:
+        """Parse a single RSS item into a story dictionary.
+        
+        Args:
+            item: BeautifulSoup item tag
+            
+        Returns:
+            Story dictionary or None if parsing fails
+        """
+        try:
+            # Extract source from the title format "Title - Source"
+            title_parts = item.title.text.split(' - ')
+            source = title_parts[-1] if len(title_parts) > 1 else "Unknown Source"
+            title = ' - '.join(title_parts[:-1]) if len(title_parts) > 1 else title_parts[0]
+            
+            # Parse and format the publication date
+            pub_date = datetime.strptime(
+                item.pubDate.text, 
+                '%a, %d %b %Y %H:%M:%S %Z'
+            )
+            
+            return {
+                'title': title.strip(),
+                'url': item.link.text,
+                'source': source.strip(),
+                'published': pub_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'summary': item.description.text if item.description else None
+            }
+            
+        except (AttributeError, ValueError) as e:
+            logger.warning(
+                "Failed to parse story item: %s. Error: %s",
+                item.get_text(strip=True)[:100], str(e)
+            )
+            return None
+
     def fetch_top_stories(self) -> List[Dict[str, str]]:
         """Fetch top stories from Google News.
         
         Returns:
-            List of dictionaries containing story information:
-            {
-                'title': str,
-                'url': str,
-                'source': str,
-                'published': str,
-                'summary': Optional[str]
-            }
+            List of story dictionaries
         """
         try:
             response = requests.get(self.BASE_URL, headers=self.HEADERS)
@@ -60,33 +91,9 @@ class GoogleNewsScraper:
             
             stories = []
             for item in items:
-                try:
-                    # Extract source from the title format "Title - Source"
-                    title_parts = item.title.text.split(' - ')
-                    source = title_parts[-1] if len(title_parts) > 1 else "Unknown Source"
-                    title = ' - '.join(title_parts[:-1]) if len(title_parts) > 1 else title_parts[0]
-                    
-                    # Parse and format the publication date
-                    pub_date = datetime.strptime(
-                        item.pubDate.text, 
-                        '%a, %d %b %Y %H:%M:%S %Z'
-                    )
-                    
-                    story = {
-                        'title': title.strip(),
-                        'url': item.link.text,
-                        'source': source.strip(),
-                        'published': pub_date.strftime('%Y-%m-%d %H:%M:%S'),
-                        'summary': item.description.text if item.description else None
-                    }
+                story = self._parse_story_item(item)
+                if story:
                     stories.append(story)
-                    
-                except (AttributeError, ValueError) as e:
-                    logger.warning(
-                        "Failed to parse story item: %s. Error: %s",
-                        item.get_text(strip=True)[:100], str(e)
-                    )
-                    continue
             
             if not stories:
                 logger.warning(

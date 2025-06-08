@@ -5,10 +5,11 @@ This module orchestrates the generation of markdown files from news sources.
 """
 
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Type
 import logging
 import os
 
+from .sources.base import NewsSource
 from .sources.google_news import GoogleNewsScraper
 from .summarizer import LLMSummarizer
 from . import utils
@@ -18,24 +19,52 @@ logger = logging.getLogger(__name__)
 class NewsDigestGenerator:
     """Generates daily news digests in markdown format."""
     
-    def __init__(self, max_stories: int = 10, use_llm: bool = True, llm_model: str = "gpt-4o"):
+    def __init__(
+        self,
+        source_class: Type[NewsSource] = GoogleNewsScraper,
+        max_stories: int = 10,
+        use_llm: bool = True,
+        llm_model: str = "gpt-4o",
+        llm_temperature: float = 0.5,
+        output_dir: str = "content"
+    ):
         """Initialize the generator.
         
         Args:
+            source_class: News source class to use (default: GoogleNewsScraper)
             max_stories: Maximum number of stories to include (default: 10)
             use_llm: Whether to use LLM summarization (default: True)
             llm_model: OpenAI model to use (default: gpt-4o)
+            llm_temperature: Model temperature (default: 0.5)
+            output_dir: Directory for output files (default: "content")
         """
-        self.google_news = GoogleNewsScraper(max_stories=max_stories)
+        self.output_dir = output_dir
+        self.news_source = source_class(max_stories=max_stories)
         self.use_llm = use_llm
-        self.llm_model = llm_model
         
         if use_llm:
             try:
-                self.summarizer = LLMSummarizer(model=llm_model)
+                self.summarizer = LLMSummarizer(
+                    model=llm_model,
+                    temperature=llm_temperature
+                )
             except ValueError as e:
                 logger.warning(f"Failed to initialize LLM summarizer: {str(e)}")
                 self.use_llm = False
+    
+    def _get_file_path(self, date: datetime) -> str:
+        """Get the file path for a given date's digest.
+        
+        Args:
+            date: datetime object
+            
+        Returns:
+            Path to the markdown file
+        """
+        return os.path.join(
+            self.output_dir,
+            f"{date.strftime('%Y-%m-%d')}.md"
+        )
     
     def generate_markdown(self, stories: List[Dict[str, str]], date: Optional[datetime] = None) -> str:
         """Generate markdown content from stories.
@@ -56,13 +85,19 @@ class NewsDigestGenerator:
             for story in stories:
                 summary = None
                 if story.get('summary'):
-                    summary = self.summarizer.summarize_article(story['summary'])
+                    try:
+                        summary = self.summarizer.summarize_article(story['summary'])
+                    except Exception as e:
+                        logger.warning(f"Failed to summarize article: {str(e)}")
                 article_summaries.append(summary or "No summary available.")
         
         # Generate daily overview if LLM is enabled
         daily_overview = None
         if self.use_llm and article_summaries:
-            daily_overview = self.summarizer.summarize_day(article_summaries)
+            try:
+                daily_overview = self.summarizer.summarize_day(article_summaries)
+            except Exception as e:
+                logger.warning(f"Failed to generate daily overview: {str(e)}")
         
         # Generate frontmatter and header
         content = [
@@ -97,8 +132,6 @@ class NewsDigestGenerator:
         
         # Add each story
         for i, (story, summary) in enumerate(zip(stories, article_summaries if self.use_llm else [None] * len(stories))):
-            time_str = utils.time_ago(story['published'])
-            
             content.extend([
                 f"### {story['title']}",
                 f"*{story['source']}* – [Read full article]({story['url']})",
@@ -126,26 +159,34 @@ class NewsDigestGenerator:
             True if digest was generated, False otherwise
         """
         date = date or datetime.now()
-        file_path = utils.get_file_path(date)
+        file_path = self._get_file_path(date)
         
         # Check if digest already exists
         if not force and os.path.exists(file_path):
             logger.info(f"Digest already exists for {date.strftime('%Y-%m-%d')}")
             return False
         
-        # Ensure content directory exists
-        utils.ensure_content_dir()
+        # Ensure output directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
         
         # Fetch stories
-        stories = self.google_news.get_stories()
-        if not stories:
-            logger.error("No stories found")
+        try:
+            stories = self.news_source.get_stories()
+            if not stories:
+                logger.error("No stories found")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to fetch stories: {str(e)}")
             return False
         
         # Generate and write markdown
-        markdown = self.generate_markdown(stories, date)
-        with open(file_path, 'w') as f:
-            f.write(markdown)
+        try:
+            markdown = self.generate_markdown(stories, date)
+            with open(file_path, 'w') as f:
+                f.write(markdown)
+        except Exception as e:
+            logger.error(f"Failed to generate or write digest: {str(e)}")
+            return False
         
         logger.info(f"Generated digest at {file_path}")
         return True 

@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import DigestLayout from '../../layouts/DigestLayout.astro';
+
+export async function getStaticPaths() {
+  const digests = await getCollection('digests');
+  return digests.map(digest => ({
+    params: { slug: digest.slug },
+    props: { digest },
+  }));
+}
+
+const { digest } = Astro.props;
+const { Content } = await digest.render();
+---
+
+<DigestLayout frontmatter={digest.data}>
+  <Content />
+</DigestLayout> 

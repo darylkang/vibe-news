@@ -1,0 +1,95 @@
+---
+import { format } from 'date-fns';
+import Layout from './Layout.astro';
+
+interface Props {
+  frontmatter: {
+    title: string;
+    pubDate: string;
+    description: string;
+  };
+}
+
+const { frontmatter } = Astro.props;
+const formattedDate = format(new Date(frontmatter.pubDate), 'MMMM d, yyyy');
+---
+
+<Layout title={frontmatter.title} description={frontmatter.description}>
+  <div class="mb-8">
+    <a
+      href="/"
+      class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+    >
+      <svg
+        class="w-4 h-4 mr-1"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M15 19l-7-7 7-7"
+        />
+      </svg>
+      Back to digests
+    </a>
+  </div>
+  
+  <article class="prose dark:prose-invert lg:prose-lg mx-auto">
+    <header class="not-prose mb-8">
+      <h1 class="text-4xl font-bold mb-2">{frontmatter.title}</h1>
+      <time datetime={frontmatter.pubDate} class="text-gray-500">
+        {formattedDate}
+      </time>
+    </header>
+    
+    <div class="mt-8 [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:mt-8 [&>h2]:mb-4">
+      <slot />
+    </div>
+  </article>
+</Layout>
+
+<style>
+  /* Custom prose styles */
+  .prose {
+    max-width: 100%;
+  }
+  
+  .prose :global(hr) {
+    @apply my-8;
+  }
+  
+  .prose :global(a) {
+    @apply text-blue-600 dark:text-blue-400 no-underline hover:underline;
+  }
+  
+  .prose :global(p) {
+    @apply mb-4 leading-relaxed;
+  }
+  
+  .prose :global(ul) {
+    @apply mb-4 list-disc list-inside;
+  }
+  
+  .prose :global(ol) {
+    @apply mb-4 list-decimal list-inside;
+  }
+  
+  .prose :global(blockquote) {
+    @apply pl-4 border-l-4 border-gray-200 dark:border-gray-700 italic;
+  }
+  
+  .prose :global(code) {
+    @apply px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded;
+  }
+  
+  .prose :global(pre) {
+    @apply p-4 bg-gray-100 dark:bg-gray-800 rounded overflow-x-auto;
+  }
+  
+  .prose :global(img) {
+    @apply rounded-lg shadow-lg;
+  }
+</style> 

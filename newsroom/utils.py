@@ -58,13 +58,19 @@ def time_ago(timestamp: str) -> str:
     
     Returns:
         String like "5h ago" or "2d ago"
+        
+    Raises:
+        ValueError: If timestamp is invalid
     """
-    now = datetime.now()
-    then = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-    delta = now - then
-    
-    hours = delta.total_seconds() / 3600
-    if hours < 24:
-        return f"{int(hours)}h ago"
-    days = int(hours / 24)
-    return f"{days}d ago" 
+    try:
+        now = datetime.now()
+        then = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+        delta = now - then
+        
+        hours = delta.total_seconds() / 3600
+        if hours < 24:
+            return f"{int(hours)}h ago"
+        days = int(hours / 24)
+        return f"{days}d ago"
+    except ValueError as e:
+        raise ValueError(f"Invalid timestamp format: {str(e)}") 
