@@ -1,0 +1,49 @@
+---
+description: Enforces consistent code style conventions across the vibe-news project.
+globs: ["*.py"]
+alwaysApply: true
+---
+# 🎨 Cursor Rule: Code Style
+
+This rule defines the preferred **coding style** for the `vibe-news` project, ensuring consistency, clarity, and maintainability across all Python files.
+
+---
+
+## ✅ General Style
+
+- Prioritize **clarity and readability** over cleverness or brevity.
+- Use `snake_case` for functions and variables.
+- Use `PascalCase` for class names.
+- Include **type hints** for all functions and method signatures.
+- Use consistent indentation (4 spaces).
+- Limit line length to **100 characters** where possible.
+- Keep files under **300 lines**; refactor if growing beyond that.
+
+---
+
+## 🧼 Clean Code Practices
+
+- Remove dead code, commented-out blocks, and unused imports.
+- Group imports into:
+  1. Standard library
+  2. Third-party packages
+  3. Internal modules
+  ...with one blank line between groups.
+- Use **docstrings** for all public functions, classes, and modules.
+- Prefer f-strings over other string formatting methods.
+- Avoid deeply nested logic when possible — flatten conditionals and extract helper functions.
+
+---
+
+## 🛠️ Function & Module Behavior
+
+- Functions should **do one thing well** and be named accordingly.
+- Avoid side effects in utility functions unless explicitly intended.
+- Raise specific exceptions, not generic `Exception`.
+
+---
+
+## 🧠 Cursor-Specific Notes
+
+- Only modify code style if the changes clearly improve readability and follow the above rules.
+- When in doubt, **ask before making nontrivial stylistic rewrites**.
